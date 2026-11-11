@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICTS Italia - Gestione Servizi per Mese e Compagnia</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- ExcelJS per esportazione Excel professionale -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <!-- FileSaver -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- JSZip per la creazione automatica dell'archivio zip dei PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- html2pdf per la conversione asincrona in PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- PWA Manifest e Meta Tag -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e293b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ICTS Servizi">
+
+    <!-- Firebase SDK & Firestore Module -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-analytics.js";
+      import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyBqC0ChRR_VMQ7cEc9YNybGmoKQ8AGFAyc",
+        authDomain: "service-summary.firebaseapp.com",
+        projectId: "service-summary",
+        storageBucket: "service-summary.firebasestorage.app",
+        messagingSenderId: "236549785702",
+        appId: "1:236549785702:web:09dec845392e60bf1a85a7",
+        measurementId: "G-6MFVL77DXX"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+      const db = getFirestore(app);
+
+      // Esponiamo le funzioni Firebase globalmente per l'applicazione
+      window.db = db;
+      window.docRef = doc(db, "icts_data", "main_database");
+      window.getDoc = getDoc;
+      window.setDoc = setDoc;
+      window.onSnapshot = onSnapshot;
+
+      // Avviamo l'applicazione dopo aver inizializzato Firebase
+      if (window.onFirebaseReady) {
+          window.onFirebaseReady();
+      }
+    </script>
+
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            background-color: #f4f6f9; 
+            font-family: 'Segoe UI', Arial, sans-serif !important; 
+            font-size: 14px;
+            color: #1e293b;
+        }
+        .sidebar { background-color: #1e293b; color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
+        .sidebar .nav-link { color: #94a3b8; font-weight: 500; border-radius: 8px; margin-bottom: 4px; padding: 10px 15px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #0f172a; color: #38bdf8; }
+        
+        .sidebar-square-badge {
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+
+        .table-editable td { padding: 4px 8px; vertical-align: middle; }
+        .table-editable input[type="text"], .table-editable input[type="date"], .table-editable input[type="number"], .table-editable select {
+            border: 1px solid transparent; background: transparent; width: 100%; padding: 4px 6px; border-radius: 4px; font-size: 13px;
+        }
+        .table-editable input[type="text"]:focus, .table-editable input[type="date"]:focus, .table-editable input[type="number"]:focus, .table-editable select:focus,
+        .table-editable tr:hover input[type="text"], .table-editable tr:hover input[type="date"], .table-editable tr:hover input[type="number"], .table-editable tr:hover select {
+            border-color: #cbd5e1; background-color: #ffffff;
+        }
+        .table-editable input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .card-stat { border: none; border-radius: 10px; }
+        .airline-logo-badge { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; color: #0f172a; font-weight: bold; font-size: 11px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; flex-shrink: 0; overflow: hidden; }
+        .airline-logo-badge img { width: 100%; height: 100%; object-fit: contain; }
+        .airline-logo-header { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; color: #0f172a; font-weight: bold; font-size: 13px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #cbd5e1; overflow: hidden; }
+        .airline-logo-header img { width: 100%; height: 100%; object-fit: contain; }
+        .company-actions { opacity: 0.3; transition: opacity 0.2s; }
+        .nav-link:hover .company-actions { opacity: 1; }
+        
+        tr.row-completed { background-color: #fff9db !important; }
+        tr.row-completed input, tr.row-completed select { background-color: transparent !important; }
+
+        .print-check-symbol { display: none; }
+
+        @media print {
+            .no-print { display: none !important; }
+            .sidebar { display: none !important; }
+            .main-content { margin-left: 0 !important; width: 100% !important; padding: 0 !important; }
+            body { background: #fff; font-size: 9px !important; color: #1e293b !important; font-family: 'Segoe UI', Arial, sans-serif !important; }
+            
+            .table-editable input, .table-editable select { border: none !important; background: transparent !important; -webkit-appearance: none; display: inline-block; font-size: 9px !important; padding: 0 !important; color: #000 !important; }
+            .table { border-collapse: collapse !important; width: 100% !important; font-size: 8.5px !important; table-layout: auto !important; }
+            .table th { background-color: #0f172a !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #1e293b !important; text-align: center; padding: 3px !important; }
+            .table td, .table th { border: 1px solid #cbd5e1 !important; padding: 3px 4px !important; }
+            
+            .table th:nth-child(4), .table td:nth-child(4) { width: 70px !important; }
+            .table th:nth-child(5), .table td:nth-child(5) { width: 75px !important; min-width: 75px !important; }
+            
+            .table th:nth-child(1), .table td:nth-child(1),
+            .table th:nth-child(2), .table td:nth-child(2),
+            .table th:nth-child(3), .table td:nth-child(3) { display: none !important; }
+            
+            .table td input[type="checkbox"] { display: none !important; }
+            .print-check-symbol { display: inline-block !important; font-weight: bold; font-size: 10px; color: #0f172a; text-align: center; width: 100%; }
+
+            .airline-logo-badge, .airline-logo-header {
+                display: inline-flex !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                border: 1px solid #94a3b8 !important;
+                box-shadow: none !important;
+            }
+            .airline-logo-badge img, .airline-logo-header img {
+                display: block !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                object-fit: contain !important;
+            }
+            .bg-light { background-color: #ffffff !important; }
+            @page { size: A4 portrait; margin: 0.6cm; }
+        }
+
+        body.pdf-exporting .no-print, body.pdf-exporting .sidebar { display: none !important; }
+        body.pdf-exporting .main-content { margin-left: 0 !important; width: 100% !important; padding: 0 !important; background: #fff; }
+        body.pdf-exporting .table-editable input, body.pdf-exporting .table-editable select { border: none !important; background: transparent !important; -webkit-appearance: none; display: inline-block; font-size: 9px !important; padding: 0 !important; color: #000 !important; }
+        body.pdf-exporting .table { border-collapse: collapse !important; width: 100% !important; font-size: 8.5px !important; table-layout: auto !important; }
+        body.pdf-exporting .table th { background-color: #0f172a !important; color: #fff !important; border: 1px solid #1e293b !important; text-align: center; padding: 3px !important; }
+        body.pdf-exporting .table td, body.pdf-exporting .table th { border: 1px solid #cbd5e1 !important; padding: 3px 4px !important; }
+        body.pdf-exporting .table th:nth-child(4), body.pdf-exporting .table td:nth-child(4) { width: 70px !important; }
+        body.pdf-exporting .table th:nth-child(5), body.pdf-exporting .table td:nth-child(5) { width: 75px !important; min-width: 75px !important; }
+        body.pdf-exporting .table th:nth-child(1), body.pdf-exporting .table td:nth-child(1),
+        body.pdf-exporting .table th:nth-child(2), body.pdf-exporting .table td:nth-child(2),
+        body.pdf-exporting .table th:nth-child(3), body.pdf-exporting .table td:nth-child(3) { display: none !important; }
+        body.pdf-exporting .table td input[type="checkbox"] { display: none !important; }
+        body.pdf-exporting .print-check-symbol { display: inline-block !important; font-weight: bold; font-size: 10px; color: #0f172a; text-align: center; width: 100%; }
+        body.pdf-exporting .d-print-block { display: block !important; }
+        body.pdf-exporting .airline-logo-badge, body.pdf-exporting .airline-logo-header {
+            display: inline-flex !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        body.pdf-exporting .airline-logo-badge img, body.pdf-exporting .airline-logo-header img {
+            display: block !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar Compagnie e Mesi -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3 no-print">
+            <div class="d-flex align-items-center mb-3 px-2 text-white gap-2">
+                <div id="sidebarLogoContainer" style="width: 45px; height: 45px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #475569;">
+                </div>
+                <div class="overflow-hidden">
+                    <span class="fs-6 fw-bold d-block lh-sm">ICTS ITALIA</span>
+                    <span style="font-size: 10px; color: #94a3b8;" class="text-truncate d-block">Airport Security</span>
+                </div>
+            </div>
+
+            <div class="mb-3 px-1">
+                <button class="btn btn-sm btn-outline-light w-100 py-1" style="font-size: 11px;" onclick="openICTSLogoModal()">
+                    <i class="fa-solid fa-image me-1"></i> Cambia Logo Società
+                </button>
+            </div>
+
+            <!-- SELETTORE MESE E ANNO -->
+            <div class="bg-dark p-2 rounded mb-3 border border-secondary">
+                <label class="form-label text-info fw-bold small mb-1">
+                    <i class="fa-solid fa-calendar-days me-1"></i> Seleziona Mese/Anno:
+                </label>
+                <input type="month" id="monthPicker" class="form-control form-control-sm bg-secondary text-white border-0" onchange="changeMonth(this.value)">
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center mb-2 px-2 text-uppercase text-muted small fw-bold">
+                <span>Compagnie</span>
+                <button class="btn btn-sm btn-outline-info p-0 px-2" onclick="openCompanyModal()" title="Aggiungi Nuova Compagnia">
+                    <i class="fa-solid fa-plus"></i> Nuova
+                </button>
+            </div>
+
+            <div class="nav flex-column nav-pills mb-3" id="companyTabs" role="tablist">
+                <!-- Generato via JS -->
+            </div>
+
+            <!-- Pulsante Reset Servizi -->
+            <div class="mt-auto pt-3 border-top border-secondary px-2 no-print">
+                <button class="btn btn-outline-danger btn-sm w-100 py-2 fw-bold" onclick="resetAllServicesPrompt()">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i> Reset Tutti i Servizi
+                </button>
+            </div>
+        </nav>
+
+        <!-- Contenuto Principale -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-3 main-content">
+            
+            <!-- Topbar Azioni -->
+            <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom no-print">
+                <div class="d-flex align-items-center gap-3">
+                    <div id="companyHeaderLogo"></div>
+                    <div>
+                        <h2 class="h3 fw-bold m-0" id="currentCompanyTitle">Compagnia</h2>
+                        <span class="text-muted small">Mese selezionato: <strong class="text-primary" id="currentMonthBadge">Novembre 2026</strong></span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <button class="btn btn-outline-secondary" onclick="openCompanyModalForEdit(currentCompany)" id="editCompanyBtn" style="display:none;">
+                        <i class="fa-solid fa-pen-to-square me-1"></i> Modifica Compagnia
+                    </button>
+                    <!-- TASTO BACKUP ZIP MESE CORRENTE -->
+                    <button class="btn btn-warning text-dark fw-bold" onclick="generateCurrentMonthZipBackup(event)" title="Scarica archivio ZIP con i PDF di tutte le compagnie del mese corrente">
+                        <i class="fa-solid fa-file-zipper me-1"></i> Backup Mese Corrente (.zip)
+                    </button>
+                    <button class="btn btn-success" onclick="exportExcelAvvanzato()">
+                        <i class="fa-solid fa-file-excel me-1"></i> Esporta Excel HD
+                    </button>
+                    <button class="btn btn-danger" onclick="exportPDF()">
+                        <i class="fa-solid fa-file-pdf me-1"></i> Crea PDF / Stampa Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Header per Stampa PDF Ufficiale -->
+            <div class="d-none d-print-block mb-3 text-center" id="printablePDFHeader">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                    <div class="text-start" style="width: 120px; height: 40px;">
+                        <div id="printICTSLogoContainer" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-start;"></div>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="m-0 fw-bold text-uppercase" style="font-size: 13px; color: #0f172a; letter-spacing: 0.5px;">Rapporto Mensile Servizi di Security</h3>
+                        <span style="font-size: 10px; color: #475569;" class="fw-semibold">Airport Security & Ground Services</span>
+                    </div>
+                    <div class="text-end" style="width: 120px;">
+                        <span style="font-size: 9px; color: #475569;" class="d-block">Data: <strong id="printDate"></strong></span>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between bg-light p-2 rounded border">
+                    <div class="d-flex align-items-center gap-2">
+                        <div id="printCompanyLogoContainer"></div>
+                        <h5 class="m-0 fw-bold text-uppercase text-dark" style="font-size: 12px;" id="printCompanyTitle">COMPAGNIA</h5>
+                    </div>
+                    <div>
+                        <span style="font-size: 10px; color: #1e293b;">Mese di Riferimento: <strong class="text-dark" id="printMonthText">Novembre 2026</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistiche Compagnia -->
+            <div class="row g-3 mb-3 no-print">
+                <div class="col-md-2-4" style="width: 20%;">
+                    <div class="card card-stat bg-white shadow-sm p-3 border-start border-primary border-4">
+                        <div class="text-muted small text-uppercase fw-bold">Totale Righe / Servizi</div>
+                        <div class="h3 mb-0 fw-bold text-primary" id="statTotal">0</div>
+                    </div>
+                </div>
+                <div class="col-md-2-4" style="width: 20%;">
+                    <div class="card card-stat bg-white shadow-sm p-3 border-start border-info border-4">
+                        <div class="text-muted small text-uppercase fw-bold">Lost & Found (L&F)</div>
+                        <div class="h3 mb-0 fw-bold text-info" id="statLF">0</div>
+                    </div>
+                </div>
+                <div class="col-md-2-4" style="width: 20%;">
+                    <div class="card card-stat bg-white shadow-sm p-3 border-start border-warning border-4">
+                        <div class="text-muted small text-uppercase fw-bold">Weapon Arr/Dep</div>
+                        <div class="h3 mb-0 fw-bold text-warning" id="statEscort">0</div>
+                    </div>
+                </div>
+                <div class="col-md-2-4" style="width: 20%;">
+                    <div class="card card-stat bg-white shadow-sm p-3 border-start border-success border-4">
+                        <div class="text-muted small text-uppercase fw-bold">Baggage Packaging</div>
+                        <div class="h3 mb-0 fw-bold text-success" id="statPkg">0</div>
+                    </div>
+                </div>
+                <div class="col-md-2-4" style="width: 20%;">
+                    <div class="card card-stat bg-white shadow-sm p-3 border-start border-danger border-4">
+                        <div class="text-muted small text-uppercase fw-bold">Totale Ore</div>
+                        <div class="h3 mb-0 fw-bold text-danger" id="statHours">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Riquadro Riepilogativo -->
+            <div class="card mb-3 border-2 shadow-sm mb-4 no-print" id="summaryCardContainer">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-chart-pie fa-lg" id="summaryIcon"></i>
+                            <h6 class="m-0 fw-bold text-dark" id="summaryTitleText">Riepilogo Avanzamento Interventi</h6>
+                        </div>
+                        <div class="d-flex gap-5 text-center">
+                            <div class="px-4 border-end">
+                                <span class="text-muted small d-block">Interventi Aggiunti</span>
+                                <strong class="fs-5 text-dark" id="summaryTotal">0</strong>
+                            </div>
+                            <div class="px-4">
+                                <span class="text-muted small d-block" id="summaryStatusLabel">Interventi Inseriti (✓)</span>
+                                <strong class="fs-5 fw-bold" id="summaryCompleted">0</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtro Rapido -->
+            <div class="card mb-3 border-0 shadow-sm no-print">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <input type="text" id="searchBox" class="form-control form-control-sm" placeholder="Cerca passeggero, volo o note..." oninput="renderTable()">
+                        </div>
+                        <div class="col-md-6 text-end text-muted small">
+                            <i class="fa-solid fa-calendar-check me-1"></i> I dati visualizzati sono raggruppati esclusivamente per il mese selezionato.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabella Interattiva -->
+            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle table-editable" id="mainTable">
+                        <thead class="table-dark text-nowrap">
+                            <tr>
+                                <th class="text-center" style="width: 60px;">Inserito</th>
+                                <th style="width: 45px;">#</th>
+                                <th style="width: 180px;">Compagnia</th>
+                                <th style="width: 100px;">Data</th>
+                                <th style="width: 90px;">Volo</th>
+                                <th class="text-center" style="width: 80px;">Weapon Arr</th>
+                                <th class="text-center" style="width: 80px;">Weapon Dep</th>
+                                <th class="text-center" style="width: 65px;">L&F</th>
+                                <th class="text-center" style="width: 90px;">Baggage Pkg</th>
+                                <th style="width: 100px;">Tipo (P/PG/D/L)</th>
+                                <th style="min-width: 200px;">Pax Name / Info / Seal</th>
+                                <th class="text-center" style="width: 65px;">Ore</th>
+                                <th class="text-center no-print" style="width: 60px;">Azione</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Popolato via JS -->
+                        </tbody>
+                        <tfoot class="table-secondary fw-bold">
+                            <tr>
+                                <td colspan="11" class="text-end">Totale Ore:</td>
+                                <td class="text-center text-danger fs-6" id="totalHoursCell">0</td>
+                                <td class="no-print"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="d-grid mt-3 no-print">
+                    <button class="btn btn-outline-primary py-2 fw-bold border-dashed" onclick="addNewRow()">
+                        <i class="fa-solid fa-plus-circle me-2"></i> Aggiungi Servizio / Riga in questo mese
+                    </button>
+                </div>
+            </div>
+
+            <!-- Riepilogo per Numero di Volo -->
+            <div class="card border-0 shadow-sm bg-white mb-4 no-print">
+                <div class="card-header bg-dark text-white d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-plane-arrival"></i>
+                    <h6 class="m-0 fw-bold">Riepilogo Interventi per Numero di Volo</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover align-middle m-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Numero Volo</th>
+                                    <th class="text-center">Totale Interventi Svolti</th>
+                                    <th class="text-center">Totale Ore Accumulate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="flightSummaryBody">
+                                <!-- Popolato via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3 text-muted small no-print">
+                * Legenda Tipo: <strong>P</strong>-Passeggero | <strong>PG</strong>-Polizia Giudiziaria | <strong>D</strong>-Dogana | <strong>L</strong>-Lost & Found
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<!-- Modale Logo ICTS -->
+<div class="modal fade" id="ictsLogoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="fa-solid fa-image me-2"></i>Modifica Logo Società (ICTS)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">URL Immagine o Percorso Relativo</label>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="modalIctsLogoUrl" placeholder="Es. ./img/icts.png o https://...">
+                        <input type="file" class="form-control" id="modalIctsLogoFile" accept="image/*" onchange="previewIctsLogoFile(event)">
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <img id="ictsLogoPreview" src="" alt="Anteprima Logo" style="max-height: 80px; display: none;" class="border rounded p-1 bg-light">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-primary" onclick="saveIctsLogo()">Salva Logo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modale Compagnia -->
+<div class="modal fade" id="companyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="companyModalTitle"><i class="fa-solid fa-building me-2"></i>Gestione Compagnia</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="companyForm">
+                    <input type="hidden" id="modalOriginalCode">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Codice Compagnia (es. AZ, W6, DL)</label>
+                        <input type="text" class="form-control" id="modalCompanyCode" required placeholder="Es. AZ">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nome Completo Compagnia</label>
+                        <input type="text" class="form-control" id="modalCompanyName" required placeholder="Es. ITA Airways">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Logo Compagnia (Opzionale)</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="modalCompanyLogoUrl" placeholder="Lascia vuoto per generarlo automaticamente dal nome">
+                            <input type="file" class="form-control" id="modalCompanyLogoFile" accept="image/*" onchange="previewLogoFile(event)">
+                        </div>
+                        <div class="form-text">Se lasci vuoto, il logo ufficiale verrà caricato automaticamente dal web tramite il codice IATA.</div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <img id="logoPreview" src="" alt="Anteprima Logo" style="max-height: 60px; display: none;" class="border rounded p-1 bg-light">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-outline-danger" id="deleteCompanyModalBtn" onclick="deleteCompanyFromModal()" style="display:none;"><i class="fa-solid fa-trash me-1"></i> Elimina Compagnia</button>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCompanyDetails()">Salva Compagnia</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    const defaultIctsLogo = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 450 140'><rect width='450' height='140' fill='%23ffffff'/><polygon points='20,115 65,25 430,25 385,115' fill='%231e3a8a' stroke='%231e3a8a' stroke-width='6'/><rect x='45' y='40' width='360' height='60' fill='%23ffffff'/><text x='225' y='92' font-family='Arial, sans-serif' font-weight='900' font-size='55' fill='%23dc2626' text-anchor='middle' letter-spacing='2'>ICTS</text><text x='225' y='132' font-family='Arial, sans-serif' font-weight='700' font-size='18' fill='%231e293b' text-anchor='middle'>ITALIA S.R.L.</text></svg>`;
+
+    let defaultData = [
+        {"id": 1, "company": "6H", "date": "2026-11-01", "flight": "6H", "escort_arr": false, "escort_dep": false, "lf": true, "baggage_pkg": false, "location": "L", "pax_name": "SEAL 1204381", "hours": 1, "completed": false}, 
+        {"id": 2, "company": "6H", "date": "2026-11-01", "flight": "6H", "escort_arr": false, "escort_dep": false, "lf": true, "baggage_pkg": false, "location": "P", "pax_name": "SASI SHAUL SHAI", "hours": 1, "completed": false}
+    ];
+
+    let defaultAirlineData = {
+        '6H': { name: 'Israir Airlines', logo: '' },
+        'AA': { name: 'American Airlines', logo: '' },
+        'AC': { name: 'Air Canada', logo: '' },
+        'AF': { name: 'Air France', logo: '' },
+        'AI': { name: 'Air India', logo: '' },
+        'AS': { name: 'Alaska Airlines', logo: '' },
+        'CX': { name: 'Cathay Pacific', logo: '' },
+        'DL': { name: 'Delta Air Lines', logo: '' },
+        'EI': { name: 'Aer Lingus', logo: '' },
+        '3U': { name: 'Sichuan Airlines', logo: '' },
+        'AZ': { name: 'ITA Airways', logo: '' },
+        'BA': { name: 'British Airways', logo: '' },
+        'LH': { name: 'Lufthansa', logo: '' },
+        'W6': { name: 'Wizz Air', logo: '' },
+        'FR': { name: 'Ryanair', logo: '' },
+        'IB': { name: 'Iberia', logo: '' },
+        'KL': { name: 'KLM', logo: '' },
+        'QR': { name: 'Qatar Airways', logo: '' },
+        'EK': { name: 'Emirates', logo: '' },
+        'TK': { name: 'Turkish Airlines', logo: '' }
+    };
+
+    let allData = [];
+    let airlineCustomData = defaultAirlineData;
+    let ictsCustomLogo = defaultIctsLogo;
+
+    let companiesList = Object.keys(airlineCustomData).sort();
+    let currentCompany = 'TUTTE';
+    let selectedMonth = '2026-11';
+    let modalCompInstance;
+    let modalIctsLogoInstance;
+    let isRemoteUpdating = false;
+
+    // Funzione richiamata da Firebase non appena è pronto
+    window.onFirebaseReady = async function() {
+        modalCompInstance = new bootstrap.Modal(document.getElementById('companyModal'));
+        modalIctsLogoInstance = new bootstrap.Modal(document.getElementById('ictsLogoModal'));
+        document.getElementById('monthPicker').value = selectedMonth;
+        document.getElementById('printDate').innerText = new Date().toLocaleDateString('it-IT');
+        
+        // Caricamento iniziale e attivazione ascoltatore Realtime Cloud Firestore
+        window.onSnapshot(window.docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const cloudData = docSnap.data();
+                if (!isRemoteUpdating) {
+                    if (cloudData.allData) allData = cloudData.allData;
+                    if (cloudData.airlineCustomData) airlineCustomData = cloudData.airlineCustomData;
+                    if (cloudData.ictsCustomLogo) ictsCustomLogo = cloudData.ictsCustomLogo;
+                    
+                    updateIctsLogos();
+                    renderSidebar();
+                    renderTable();
+                }
+            } else {
+                // Primo avvio: salviamo i dati di default su Firestore
+                saveDataToCloud();
+            }
+        });
+
+        updateIctsLogos();
+        updateMonthDisplay();
+        renderSidebar();
+        selectCompany('TUTTE');
+    };
+
+    async function saveDataToCloud() {
+        isRemoteUpdating = true;
+        try {
+            const payload = {
+                allData: allData,
+                airlineCustomData: airlineCustomData,
+                ictsCustomLogo: ictsCustomLogo
+            };
+            await window.setDoc(window.docRef, payload);
+        } catch (err) {
+            console.error("Errore salvataggio su Firestore:", err);
+        } finally {
+            setTimeout(() => { isRemoteUpdating = false; }, 300);
+        }
+    }
+
+    function updateIctsLogos() {
+        const sidebarLogoEl = document.getElementById('sidebarLogoContainer');
+        const printLogoEl = document.getElementById('printICTSLogoContainer');
+        const ictsImgHtml = `<img src="${ictsCustomLogo}" alt="ICTS Italia" style="width: 100%; height: 100%; object-fit: contain;" crossorigin="anonymous">`;
+        if(sidebarLogoEl) sidebarLogoEl.innerHTML = ictsImgHtml;
+        if(printLogoEl) printLogoEl.innerHTML = ictsImgHtml;
+    }
+
+    function openICTSLogoModal() {
+        document.getElementById('modalIctsLogoUrl').value = ictsCustomLogo.startsWith('data:') ? '' : ictsCustomLogo;
+        const preview = document.getElementById('ictsLogoPreview');
+        preview.src = ictsCustomLogo;
+        preview.style.display = 'inline-block';
+        modalIctsLogoInstance.show();
+    }
+
+    function previewIctsLogoFile(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('modalIctsLogoUrl').value = e.target.result;
+                const preview = document.getElementById('ictsLogoPreview');
+                preview.src = e.target.result;
+                preview.style.display = 'inline-block';
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function saveIctsLogo() {
+        const logoUrl = document.getElementById('modalIctsLogoUrl').value.trim();
+        if (logoUrl) {
+            ictsCustomLogo = logoUrl;
+            updateIctsLogos();
+            saveDataToCloud();
+            modalIctsLogoInstance.hide();
+        } else {
+            alert('Inserisci un URL valido o un percorso file.');
+        }
+    }
+
+    function changeMonth(monthVal) {
+        if (!monthVal) return;
+        selectedMonth = monthVal;
+        updateMonthDisplay();
+        renderSidebar();
+        renderTable();
+    }
+
+    function updateMonthDisplay() {
+        const [year, month] = selectedMonth.split('-');
+        const dateObj = new Date(year, parseInt(month) - 1, 1);
+        const monthName = dateObj.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
+        const formattedName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+        
+        document.getElementById('currentMonthBadge').innerText = formattedName;
+        document.getElementById('printMonthText').innerText = formattedName;
+    }
+
+    function renderSidebar() {
+        const container = document.getElementById('companyTabs');
+        companiesList = Object.keys(airlineCustomData).sort();
+
+        const monthData = allData.filter(item => item.date && item.date.startsWith(selectedMonth));
+        let totalMonthRows = monthData.length;
+
+        let tutteBadgeClass = "bg-primary text-white";
+        if (totalMonthRows > 0) {
+            const allCompleted = monthData.every(i => i.completed);
+            tutteBadgeClass = allCompleted ? "bg-success text-white" : "bg-danger text-white";
+        }
+
+        let html = `
+            <a href="#" class="nav-link ${currentCompany === 'TUTTE' ? 'active' : ''}" onclick="selectCompany('TUTTE')">
+                <div class="d-flex align-items-center justify-content-between w-100">
+                    <div class="d-flex align-items-center gap-2 overflow-hidden">
+                        <div class="airline-logo-badge bg-primary text-white"><i class="fa-solid fa-globe"></i></div>
+                        <span class="text-truncate fw-bold">Tutte le Compagnie</span>
+                    </div>
+                    <span class="sidebar-square-badge ${tutteBadgeClass}">${totalMonthRows}</span>
+                </div>
+            </a>
+            <div class="my-2 border-top border-secondary"></div>
+        `;
+
+        companiesList.forEach(code => {
+            const comp = airlineCustomData[code];
+            const compItems = monthData.filter(item => item.company === code);
+            const count = compItems.length;
+            const isActive = currentCompany === code;
+            
+            let badgeClass = "bg-primary text-white";
+            if (count > 0) {
+                const allCompleted = compItems.every(i => i.completed);
+                badgeClass = allCompleted ? "bg-success text-white" : "bg-danger text-white";
+            }
+
+            let logoSrc = comp.logo ? comp.logo : `https://pics.avs.io/200/200/${code}.png`;
+            let logoHtml = `<img src="${logoSrc}" alt="${code}" crossorigin="anonymous">`;
+
+            html += `
+                <div class="d-flex align-items-center nav-link-wrapper mb-1">
+                    <a href="#" class="nav-link flex-grow-1 ${isActive ? 'active' : ''} py-2" onclick="selectCompany('${code}')">
+                        <div class="d-flex align-items-center justify-content-between w-100">
+                            <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                <div class="airline-logo-badge">${logoHtml}</div>
+                                <div class="overflow-hidden">
+                                    <span class="text-truncate fw-bold d-block lh-sm">${comp.name}</span>
+                                    <span style="font-size: 10px; opacity: 0.7;" class="text-truncate d-block">${code}</span>
+                                </div>
+                            </div>
+                            <span class="sidebar-square-badge ${badgeClass}">${count}</span>
+                        </div>
+                    </a>
+                    <div class="company-actions ms-1 d-flex gap-1 no-print">
+                        <button class="btn btn-sm btn-dark text-light p-1 border-0" onclick="openCompanyModalForEdit('${code}')" title="Modifica Compagnia"><i class="fa-solid fa-gear" style="font-size: 11px;"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function selectCompany(code) {
+        currentCompany = code;
+        renderSidebar();
+
+        const titleEl = document.getElementById('currentCompanyTitle');
+        const headerLogoEl = document.getElementById('companyHeaderLogo');
+        const printLogoContainer = document.getElementById('printCompanyLogoContainer');
+        const printTitleEl = document.getElementById('printCompanyTitle');
+        const editBtn = document.getElementById('editCompanyBtn');
+
+        if (code === 'TUTTE') {
+            titleEl.innerText = "Tutte le Compagnie (Riepilogo Mensile)";
+            headerLogoEl.innerHTML = `<div class="airline-logo-header bg-primary text-white"><i class="fa-solid fa-globe fa-lg"></i></div>`;
+            printLogoContainer.innerHTML = '';
+            printTitleEl.innerText = "TUTTE LE COMPAGNIE - " + document.getElementById('currentMonthBadge').innerText;
+            editBtn.style.display = 'none';
+        } else {
+            const comp = airlineCustomData[code] || { name: code, logo: '' };
+            titleEl.innerText = `${code} - ${comp.name}`;
+            
+            let logoSrc = comp.logo ? comp.logo : `https://pics.avs.io/200/200/${code}.png`;
+            let logoHtml = `<img src="${logoSrc}" alt="${code}" crossorigin="anonymous">`;
+            
+            headerLogoEl.innerHTML = `<div class="airline-logo-header">${logoHtml}</div>`;
+            printLogoContainer.innerHTML = `<div class="airline-logo-header me-2" style="width: 32px; height: 32px;">${logoHtml}</div>`;
+            printTitleEl.innerText = `${code} - ${comp.name}`;
+            editBtn.style.display = 'inline-block';
+        }
+
+        renderTable();
+    }
+
+    function getFilteredData() {
+        let data = allData.filter(item => item.date && item.date.startsWith(selectedMonth));
+
+        if (currentCompany !== 'TUTTE') {
+            data = data.filter(item => item.company === currentCompany);
+        }
+
+        const query = document.getElementById('searchBox').value.toLowerCase().trim();
+        if (query) {
+            data = data.filter(item => {
+                const compName = airlineCustomData[item.company]?.name?.toLowerCase() || '';
+                return (item.flight && item.flight.toLowerCase().includes(query)) ||
+                       (item.pax_name && item.pax_name.toLowerCase().includes(query)) ||
+                       (item.location && item.location.toLowerCase().includes(query)) ||
+                       (item.company && item.company.toLowerCase().includes(query)) ||
+                       compName.includes(query);
+            });
+        }
+
+        return data;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        const data = getFilteredData();
+        let html = '';
+
+        let totalLF = 0;
+        let totalEscort = 0;
+        let totalPkg = 0;
+        let totalHours = 0;
+        let completedCount = 0;
+
+        let baseMonthData = allData.filter(item => item.date && item.date.startsWith(selectedMonth));
+        if (currentCompany !== 'TUTTE') {
+            baseMonthData = baseMonthData.filter(item => item.company === currentCompany);
+        }
+
+        baseMonthData.forEach(item => {
+            if (item.completed) completedCount++;
+            if (item.lf) totalLF++;
+            if (item.escort_arr || item.escort_dep) totalEscort++;
+            if (item.baggage_pkg) totalPkg++;
+            totalHours += parseFloat(item.hours) || 0;
+        });
+
+        document.getElementById('statTotal').innerText = baseMonthData.length;
+        document.getElementById('statLF').innerText = totalLF;
+        document.getElementById('statEscort').innerText = totalEscort;
+        document.getElementById('statPkg').innerText = totalPkg;
+        document.getElementById('statHours').innerText = totalHours;
+
+        document.getElementById('summaryTotal').innerText = baseMonthData.length;
+        document.getElementById('summaryCompleted').innerText = completedCount;
+        
+        const summaryCard = document.getElementById('summaryCardContainer');
+        const summaryIcon = document.getElementById('summaryIcon');
+        const summaryTitle = document.getElementById('summaryTitleText');
+
+        if (baseMonthData.length > 0 && completedCount === baseMonthData.length) {
+            summaryCard.className = "card mb-3 border-2 shadow-sm mb-4 border-success bg-light no-print";
+            summaryIcon.className = "fa-solid fa-circle-check fa-lg text-success";
+            summaryTitle.className = "m-0 fw-bold text-success";
+            summaryTitle.innerText = "Tutti gli interventi del mese sono completati e verificati!";
+        } else if (completedCount > 0) {
+            summaryCard.className = "card mb-3 border-2 shadow-sm mb-4 border-warning bg-light no-print";
+            summaryIcon.className = "fa-solid fa-clock-rotate-left fa-lg text-warning";
+            summaryTitle.className = "m-0 fw-bold text-dark";
+            summaryTitle.innerText = "Interventi in fase di completamento...";
+        } else {
+            summaryCard.className = "card mb-3 border-2 shadow-sm mb-4 border-primary bg-light no-print";
+            summaryIcon.className = "fa-solid fa-chart-pie fa-lg text-primary";
+            summaryTitle.className = "m-0 fw-bold text-dark";
+            summaryTitle.innerText = "Riepilogo Avanzamento Interventi";
+        }
+
+        data.forEach((item, index) => {
+            let rowClass = item.completed ? 'row-completed' : '';
+            
+            let companyCellContent = '';
+            if (currentCompany === 'TUTTE') {
+                let companySelectOptions = companiesList.map(c => `<option value="${c}" ${item.company === c ? 'selected' : ''}>${c} - ${airlineCustomData[c]?.name || c}</option>`).join('');
+                companyCellContent = `
+                    <select class="form-select form-select-sm fw-semibold" onchange="updateItemField(${item.id}, 'company', this.value)">
+                        ${companySelectOptions}
+                    </select>
+                `;
+            } else {
+                const compInfo = airlineCustomData[item.company] || { name: item.company };
+                companyCellContent = `<span class="fw-semibold text-dark px-1">${compInfo.name}</span>`;
+            }
+
+            html += `
+                <tr class="${rowClass}" data-id="${item.id}">
+                    <td class="text-center">
+                        <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleCompleted(${item.id}, this.checked)" title="Spunta come completato">
+                        <span class="print-check-symbol">${item.completed ? 'X' : '-'}</span>
+                    </td>
+                    <td class="text-muted small fw-bold">${index + 1}</td>
+                    <td>
+                        ${companyCellContent}
+                    </td>
+                    <td>
+                        <input type="date" value="${item.date || selectedMonth + '-01'}" onchange="updateItemField(${item.id}, 'date', this.value)">
+                    </td>
+                    <td>
+                        <input type="text" value="${item.flight || ''}" placeholder="Volo" oninput="updateItemFieldSilently(${item.id}, 'flight', this.value)">
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" ${item.escort_arr ? 'checked' : ''} onchange="updateItemField(${item.id}, 'escort_arr', this.checked)">
+                        <span class="print-check-symbol">${item.escort_arr ? 'X' : '-'}</span>
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" ${item.escort_dep ? 'checked' : ''} onchange="updateItemField(${item.id}, 'escort_dep', this.checked)">
+                        <span class="print-check-symbol">${item.escort_dep ? 'X' : '-'}</span>
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" ${item.lf ? 'checked' : ''} onchange="updateItemField(${item.id}, 'lf', this.checked)">
+                        <span class="print-check-symbol">${item.lf ? 'X' : '-'}</span>
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" ${item.baggage_pkg ? 'checked' : ''} onchange="updateItemField(${item.id}, 'baggage_pkg', this.checked)">
+                        <span class="print-check-symbol">${item.baggage_pkg ? 'X' : '-'}</span>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm" onchange="updateItemField(${item.id}, 'location', this.value)">
+                            <option value="P" ${item.location === 'P' ? 'selected' : ''}>P - Passeggero</option>
+                            <option value="PG" ${item.location === 'PG' ? 'selected' : ''}>PG - Polizia Giudiziaria</option>
+                            <option value="D" ${item.location === 'D' ? 'selected' : ''}>D - Dogana</option>
+                            <option value="L" ${item.location === 'L' ? 'selected' : ''}>L - Lost & Found</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" value="${item.pax_name || ''}" placeholder="Nome Pax / Note / Seal" oninput="updateItemFieldSilently(${item.id}, 'pax_name', this.value)">
+                    </td>
+                    <td class="text-center">
+                        <input type="number" step="0.5" min="0" value="${item.hours !== undefined ? item.hours : 1}" style="text-align: center;" oninput="updateItemField(${item.id}, 'hours', parseFloat(this.value) || 0)">
+                    </td>
+                    <td class="text-center no-print">
+                        <button class="btn btn-sm btn-outline-danger border-0 py-0 px-1" onclick="deleteRow(${item.id})" title="Elimina riga"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+
+        let tableTotalHours = baseMonthData.reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
+        document.getElementById('totalHoursCell').innerText = tableTotalHours;
+
+        renderFlightSummary(baseMonthData);
+        renderSidebar();
+    }
+
+    function renderFlightSummary(monthData) {
+        const body = document.getElementById('flightSummaryBody');
+        let flightMap = {};
+
+        monthData.forEach(item => {
+            let fNumber = (item.flight || 'SCONOSCIUTO').trim().toUpperCase();
+            if (!flightMap[fNumber]) {
+                flightMap[fNumber] = { count: 0, hours: 0 };
+            }
+            flightMap[fNumber].count += 1;
+            flightMap[fNumber].hours += parseFloat(item.hours) || 0;
+        });
+
+        let keys = Object.keys(flightMap).sort();
+        if (keys.length === 0) {
+            body.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">Nessun volo registrato in questo mese.</td></tr>`;
+            return;
+        }
+
+        let html = '';
+        keys.forEach(flight => {
+            let info = flightMap[flight];
+            html += `
+                <tr>
+                    <td class="fw-bold text-primary"><i class="fa-solid fa-plane me-2"></i>${flight}</td>
+                    <td class="text-center"><span class="badge bg-secondary rounded-pill">${info.count}</span></td>
+                    <td class="text-center fw-bold text-danger">${info.hours} h</td>
+                </tr>
+            `;
+        });
+        body.innerHTML = html;
+    }
+
+    function addNewRow() {
+        const newId = allData.length > 0 ? Math.max(...allData.map(i => i.id)) + 1 : 1;
+        const defaultComp = currentCompany !== 'TUTTE' ? currentCompany : (companiesList[0] || 'AZ');
+        
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayFormatted = `${year}-${month}-${day}`;
+
+        const rowDate = todayFormatted.startsWith(selectedMonth) ? todayFormatted : selectedMonth + '-01';
+        const defaultFlight = defaultComp !== 'TUTTE' ? defaultComp : '';
+
+        const newItem = {
+            id: newId,
+            company: defaultComp,
+            date: rowDate,
+            flight: defaultFlight,
+            escort_arr: false,
+            escort_dep: false,
+            lf: false,
+            baggage_pkg: false,
+            location: 'P',
+            pax_name: '',
+            hours: 1,
+            completed: false
+        };
+
+        allData.push(newItem);
+
+        allData.sort((a, b) => {
+            if (a.date < b.date) return -1;
+            if (a.date > b.date) return 1;
+            return a.id - b.id;
+        });
+
+        saveDataToCloud();
+        renderSidebar();
+        renderTable();
+    }
+
+    function updateItemField(id, field, value) {
+        const item = allData.find(i => i.id === id);
+        if (item) {
+            item[field] = value;
+
+            if (field === 'company') {
+                if (!item.flight || companiesList.includes(item.flight)) {
+                    item.flight = value;
+                }
+            }
+
+            if (field === 'date') {
+                allData.sort((a, b) => {
+                    if (a.date < b.date) return -1;
+                    if (a.date > b.date) return 1;
+                    return a.id - b.id;
+                });
+            }
+
+            saveDataToCloud();
+            renderSidebar();
+            renderTable();
+        }
+    }
+
+    function updateItemFieldSilently(id, field, value) {
+        const item = allData.find(i => i.id === id);
+        if (item) {
+            item[field] = value;
+            saveDataToCloud();
+        }
+    }
+
+    function toggleCompleted(id, val) {
+        const item = allData.find(i => i.id === id);
+        if (item) {
+            item.completed = val;
+            saveDataToCloud();
+            renderTable();
+        }
+    }
+
+    function deleteRow(id) {
+        if (confirm("Sei sicuro di voler eliminare questa riga di servizio?")) {
+            allData = allData.filter(i => i.id !== id);
+            saveDataToCloud();
+            renderSidebar();
+            renderTable();
+        }
+    }
+
+    function resetAllServicesPrompt() {
+        const monthName = document.getElementById('currentMonthBadge').innerText;
+        const firstConfirm = confirm(`ATTENZIONE: Stai per eliminare TUTTI i servizi registrati nel mese di ${monthName}. Vuoi procedere?`);
+        
+        if (firstConfirm) {
+            const secondConfirm = confirm(`ULTIMO AVVISO: L'operazione è irreversibile e cancellerà definitivamente tutti i dati del mese di ${monthName}. Confermi l'eliminazione definitiva?`);
+            
+            if (secondConfirm) {
+                allData = allData.filter(i => !i.date || !i.date.startsWith(selectedMonth));
+                saveDataToCloud();
+                renderSidebar();
+                renderTable();
+                alert(`Tutti i servizi del mese di ${monthName} sono stati resettati con successo.`);
+            }
+        }
+    }
+
+    function openCompanyModal() {
+        document.getElementById('companyModalTitle').innerHTML = '<i class="fa-solid fa-building-circle-check me-2"></i>Aggiungi Nuova Compagnia';
+        document.getElementById('modalOriginalCode').value = '';
+        document.getElementById('modalCompanyCode').value = '';
+        document.getElementById('modalCompanyCode').readOnly = false;
+        document.getElementById('modalCompanyName').value = '';
+        document.getElementById('modalCompanyLogoUrl').value = '';
+        document.getElementById('logoPreview').style.display = 'none';
+        document.getElementById('deleteCompanyModalBtn').style.display = 'none';
+        modalCompInstance.show();
+    }
+
+    function openCompanyModalForEdit(code) {
+        if (code === 'TUTTE') return;
+        const comp = airlineCustomData[code] || { name: '', logo: '' };
+        document.getElementById('companyModalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square me-2"></i>Modifica Compagnia: ${code}`;
+        document.getElementById('modalOriginalCode').value = code;
+        document.getElementById('modalCompanyCode').value = code;
+        document.getElementById('modalCompanyCode').readOnly = true;
+        document.getElementById('modalCompanyName').value = comp.name;
+        document.getElementById('modalCompanyLogoUrl').value = comp.logo;
+        
+        const preview = document.getElementById('logoPreview');
+        if (comp.logo) {
+            preview.src = comp.logo;
+            preview.style.display = 'inline-block';
+        } else {
+            preview.style.display = 'none';
+        }
+
+        document.getElementById('deleteCompanyModalBtn').style.display = 'inline-block';
+        modalCompInstance.show();
+    }
+
+    function previewLogoFile(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('modalCompanyLogoUrl').value = e.target.result;
+                const preview = document.getElementById('logoPreview');
+                preview.src = e.target.result;
+                preview.style.display = 'inline-block';
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function saveCompanyDetails() {
+        const originalCode = document.getElementById('modalOriginalCode').value.trim();
+        const code = document.getElementById('modalCompanyCode').value.trim().toUpperCase();
+        const name = document.getElementById('modalCompanyName').value.trim();
+        let logo = document.getElementById('modalCompanyLogoUrl').value.trim();
+
+        if (!code || !name) {
+            alert("Inserisci codice e nome della compagnia.");
+            return;
+        }
+
+        if (!logo) {
+            logo = `https://pics.avs.io/200/200/${code}.png`;
+        }
+
+        if (!originalCode && airlineCustomData[code]) {
+            alert("Esiste già una compagnia con questo codice!");
+            return;
+        }
+
+        if (originalCode && originalCode !== code) {
+            delete airlineCustomData[originalCode];
+        }
+
+        airlineCustomData[code] = { name: name, logo: logo };
+        saveDataToCloud();
+        modalCompInstance.hide();
+        renderSidebar();
+        selectCompany(code);
+    }
+
+    function deleteCompanyFromModal() {
+        const code = document.getElementById('modalOriginalCode').value;
+        if (code && confirm(`Vuoi davvero eliminare la compagnia ${code}? Tutti i servizi collegati perderanno il riferimento o andranno puliti.`)) {
+            delete airlineCustomData[code];
+            saveDataToCloud();
+            modalCompInstance.hide();
+            selectCompany('TUTTE');
+        }
+    }
+
+    function exportPDF() {
+        const element = document.querySelector('.main-content');
+        const opt = {
+            margin:       0.4,
+            filename:     `ICTS_Rapporto_${currentCompany}_${selectedMonth}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, allowTaint: true, logging: false },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        
+        document.body.classList.add('pdf-exporting');
+        html2pdf().from(element).set(opt).save().then(() => {
+            document.body.classList.remove('pdf-exporting');
+        }).catch(err => {
+            document.body.classList.remove('pdf-exporting');
+            console.error(err);
+        });
+    }
+
+    async function exportExcelAvvanzato() {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = "ICTS Italia Airport Security";
+        workbook.created = new Date();
+
+        const sheetName = `Servizi_${selectedMonth}`;
+        const worksheet = workbook.addWorksheet(sheetName, {
+            views: [{ showGridLines: true }]
+        });
+
+        worksheet.mergeCells('A1:L1');
+        worksheet.getCell('A1').value = `ICTS ITALIA S.R.L. - RAPPORTO MENSILE SERVIZI DI SECURITY`;
+        worksheet.getCell('A1').font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFF' } };
+        worksheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0F172A' } };
+        worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+        worksheet.getRow(1).height = 28;
+
+        worksheet.mergeCells('A2:L2');
+        worksheet.getCell('A2').value = `Mese di Riferimento: ${document.getElementById('currentMonthBadge').innerText} | Compagnia: ${currentCompany}`;
+        worksheet.getCell('A2').font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: '1E293B' } };
+        worksheet.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+        worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+        worksheet.getRow(2).height = 20;
+
+        worksheet.addRow([]);
+
+        const headers = [
+            "Stato", "#", "Compagnia", "Data", "Volo", 
+            "Weapon Arr", "Weapon Dep", "L&F", "Baggage Pkg", 
+            "Tipo", "Pax Name / Info / Seal", "Ore"
+        ];
+
+        const headerRow = worksheet.addRow(headers);
+        headerRow.height = 24;
+        headerRow.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFF' } };
+        headerRow.eachCell((cell) => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '334155' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = { top: { style: 'thin', color: { argb: '1E293B' } }, bottom: { style: 'thin', color: { argb: '1E293B' } }, left: { style: 'thin', color: { argb: 'CBD5E1' } }, right: { style: 'thin', color: { argb: 'CBD5E1' } } };
+        });
+
+        const data = getFilteredData();
+        data.forEach((item, index) => {
+            const compInfo = airlineCustomData[item.company] || { name: item.company };
+
+            const rowData = [
+                item.completed ? 'X' : '-',
+                index + 1,
+                compInfo.name,
+                item.date,
+                item.flight || '-',
+                item.escort_arr ? 'X' : '-',
+                item.escort_dep ? 'X' : '-',
+                item.lf ? 'X' : '-',
+                item.baggage_pkg ? 'X' : '-',
+                item.location,
+                item.pax_name || '-',
+                parseFloat(item.hours) || 0
+            ];
+
+            const row = worksheet.addRow(rowData);
+            row.height = 19;
+            row.font = { name: 'Segoe UI', size: 9.5 };
+            
+            row.eachCell((cell, colNumber) => {
+                cell.border = { top: { style: 'thin', color: { argb: 'CBD5E1' } }, bottom: { style: 'thin', color: { argb: 'CBD5E1' } }, left: { style: 'thin', color: { argb: 'CBD5E1' } }, right: { style: 'thin', color: { argb: 'CBD5E1' } } };
+                if ([1, 2, 4, 5, 6, 7, 8, 9, 10, 12].includes(colNumber)) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                } else {
+                    cell.alignment = { vertical: 'middle', horizontal: 'left' };
+                }
+
+                if (item.completed) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9DB' } };
+                }
+            });
+        });
+
+        const totalHoursVal = data.reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
+        const totalRow = worksheet.addRow(['', '', '', '', '', '', '', '', '', '', 'TOTALE ORE:', totalHoursVal]);
+        totalRow.height = 22;
+        totalRow.font = { name: 'Segoe UI', size: 10, bold: true };
+        totalRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
+        totalRow.getCell(12).alignment = { vertical: 'middle', horizontal: 'center' };
+        totalRow.getCell(12).font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'DC2626' } };
+        totalRow.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+        totalRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 10;
+            column.eachCell({ includeEmpty: true }, cell => {
+                const columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) {
+                    maxLength = columnLength;
+                }
+            });
+            column.width = Math.min(Math.max(maxLength + 3, 11), 35);
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, `ICTS_Rapporto_${currentCompany}_${selectedMonth}.xlsx`);
+    }
+
+    async function generateCurrentMonthZipBackup(event) {
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Generazione ZIP in corso...`;
+        btn.disabled = true;
+
+        try {
+            const zip = new JSZip();
+            const monthData = allData.filter(item => item.date && item.date.startsWith(selectedMonth));
+            const activeCompaniesInMonth = [...new Set(monthData.map(i => i.company))].sort();
+
+            if (activeCompaniesInMonth.length === 0) {
+                alert("Nessun dato registrato per il mese selezionato. Impossibile generare il backup ZIP.");
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                return;
+            }
+
+            const previousCompany = currentCompany;
+            document.body.classList.add('pdf-exporting');
+
+            for (const compCode of activeCompaniesInMonth) {
+                selectCompany(compCode);
+                await new Promise(resolve => setTimeout(resolve, 400));
+
+                const element = document.querySelector('.main-content');
+                const opt = {
+                    margin:       0.4,
+                    filename:     `temp.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, allowTaint: true, logging: false },
+                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                };
+
+                const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+                
+                const compInfo = airlineCustomData[compCode] || { name: compCode };
+                const safeCompName = compInfo.name.replace(/[^a-zA-Z0-9]/g, '_');
+                const monthBadgeText = document.getElementById('currentMonthBadge').innerText.replace(/\s+/g, '_');
+                const pdfFileName = `ICTS_${compCode}_${safeCompName}_${monthBadgeText}.pdf`;
+
+                zip.file(pdfFileName, pdfBlob);
+            }
+
+            document.body.classList.remove('pdf-exporting');
+            selectCompany(previousCompany);
+
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, `ICTS_Backup_Mensile_${selectedMonth}.zip`);
+
+        } catch (err) {
+            document.body.classList.remove('pdf-exporting');
+            console.error("Errore durante la generazione del file ZIP:", err);
+            alert("Si è verificato un errore durante la creazione dell'archivio ZIP.");
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
