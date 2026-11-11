@@ -407,7 +407,7 @@
             </div>
 
             <div class="mt-3 text-muted small no-print">
-                * Legenda Tipo: <strong>P</strong>-Passeggero | <strong>PG</strong>-Polizia Giudiziaria | <strong>D</strong>-Dogana | <strong>L</strong>-Lost & Found
+                * Legenda: <strong>P</strong>-Passeggero | <strong>PG</strong>-Polizia Giudiziaria | <strong>D</strong>-Dogana | <strong>L</strong>-Lost & Found | <strong>W</strong>-Weapon
             </div>
 
         </main>
@@ -861,10 +861,11 @@
                     </td>
                     <td>
                         <select class="form-select form-select-sm" onchange="updateItemField(${item.id}, 'location', this.value)">
+                            <option value="L" ${item.location === 'L' ? 'selected' : ''}>L - Lost & Found</option>
                             <option value="P" ${item.location === 'P' ? 'selected' : ''}>P - Passeggero</option>
                             <option value="PG" ${item.location === 'PG' ? 'selected' : ''}>PG - Polizia Giudiziaria</option>
                             <option value="D" ${item.location === 'D' ? 'selected' : ''}>D - Dogana</option>
-                            <option value="L" ${item.location === 'L' ? 'selected' : ''}>L - Lost & Found</option>
+                            <option value="L" ${item.location === 'L' ? 'selected' : ''}>W - Weapon</option>
                         </select>
                     </td>
                     <td>
@@ -944,7 +945,7 @@
             escort_dep: false,
             lf: false,
             baggage_pkg: false,
-            location: 'P',
+            location: 'L',
             pax_name: '',
             hours: 1,
             completed: false
