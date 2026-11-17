@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airline Operations - Dashboard Completa</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- SheetJS per la lettura dei file .xlsx -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.85);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.12);
+            --primary-airline: #0b2341;
+            --accent-airline: #e00122;
+        }
+
+        body {
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%), 
+                        radial-gradient(circle at 50% 50%, #f4f6f9 0%, #d9e2ec 100%);
+            background-attachment: fixed;
+            background-blend-mode: overlay;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 0.85rem;
+            color: #1a1a1a;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* Layout con Sidebar */
+        .app-wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: rgba(11, 35, 65, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            z-index: 1050;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-brand {
+            padding: 20px 16px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: white;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-menu {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.5);
+            margin: 12px 0 4px 8px;
+            font-weight: 700;
+        }
+
+        .airline-btn, .nav-page-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .airline-btn:hover, .nav-page-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateX(4px);
+        }
+
+        .airline-btn.active, .nav-page-btn.active {
+            background: var(--accent-airline);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: white;
+            box-shadow: 0 4px 15px rgba(224, 1, 34, 0.4);
+        }
+
+        .nav-page-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border-left: 4px solid var(--accent-airline);
+        }
+
+        .main-content {
+            margin-left: 260px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .navbar-liquid {
+            background: rgba(11, 35, 65, 0.75) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-liquid {
+            background: var(--glass-bg);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 14px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: white;
+        }
+
+        .nav-tabs {
+            border-bottom: none;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .nav-tabs .nav-link {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: var(--primary-airline);
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            background: rgba(255, 255, 255, 0.7);
+            color: var(--accent-airline);
+        }
+
+        .nav-tabs .nav-link.active {
+            background: var(--primary-airline) !important;
+            color: white !important;
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(11, 35, 65, 0.3);
+        }
+
+        .table-responsive {
+            max-height: 68vh;
+            overflow-y: auto;
+            overflow-x: auto;
+            border-radius: 12px;
+        }
+
+        .table {
+            background: transparent;
+            margin-bottom: 0;
+        }
+
+        .table th, .table td {
+            vertical-align: middle;
+            text-align: center;
+            padding: 5px 8px;
+            white-space: nowrap;
+        }
+
+        .table th.sticky-col, .table td.sticky-col {
+            position: sticky;
+            left: 0;
+            background-color: rgba(255, 255, 255, 0.92) !important;
+            backdrop-filter: blur(6px);
+            z-index: 2;
+            text-align: left;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        .table thead th {
+            position: sticky;
+            top: 0;
+            background-color: rgba(11, 35, 65, 0.92) !important;
+            backdrop-filter: blur(8px);
+            color: white;
+            z-index: 3;
+        }
+
+        .table thead th.sticky-col {
+            z-index: 4;
+            background-color: rgba(11, 35, 65, 0.95) !important;
+            color: white;
+        }
+
+        .sunday-col {
+            background-color: rgba(255, 243, 205, 0.65) !important;
+        }
+
+        .cld-col {
+            background-color: rgba(220, 53, 69, 0.45) !important;
+        }
+
+        input.form-control-sm, select.form-select-sm {
+            background: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(4px);
+            padding: 3px 6px;
+            font-size: 0.8rem;
+            text-align: center;
+            min-width: 95px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        input.form-control-sm:focus, select.form-select-sm:focus {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: var(--primary-airline);
+            box-shadow: 0 0 0 3px rgba(11, 35, 65, 0.15);
+        }
+
+        .field-label {
+            font-weight: 600;
+            color: var(--primary-airline);
+            text-align: left !important;
+            padding-left: 12px !important;
+            background-color: rgba(248, 249, 250, 0.75) !important;
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.4);
+            color: white;
+        }
+
+        .modal-content {
+            background: rgba(244, 246, 249, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 16px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-wrapper">
+        <!-- Sidebar Laterale -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-plane-departure text-danger fs-4"></i>
+                <span>AIRLINE OPS</span>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenuContainer">
+                <div class="sidebar-section-title">Navigazione</div>
+                <div class="nav-page-btn active" id="navPageSchedule" onclick="switchPage('schedule')">
+                    <i class="fa-solid fa-table-cells"></i>
+                    <span>Schedulato Voli</span>
+                </div>
+                <div class="nav-page-btn" id="navPageStats" onclick="switchPage('stats')">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Statistiche Operative</span>
+                </div>
+                <div class="nav-page-btn" id="navPageSettings" onclick="switchPage('settings')">
+                    <i class="fa-solid fa-gears"></i>
+                    <span>Impostazioni Voli</span>
+                </div>
+
+                <div class="sidebar-section-title mt-3">Compagnie Aeree</div>
+                <div id="airlineListContainer"></div>
+            </div>
+        </nav>
+
+        <!-- Main Area -->
+        <div class="main-content">
+            <nav class="navbar navbar-dark navbar-liquid px-4 py-2 shadow-sm sticky-top">
+                <div class="container-fluid">
+                    <span class="navbar-brand mb-0 h1 d-flex align-items-center">
+                        <span id="currentAirlineTitle" class="fw-bold tracking-wide">DELTA AIR LINES</span> 
+                        <span class="ms-2 fs-6 opacity-75" id="currentViewSubtitle">| Operativa Mensile</span>
+                    </span>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="text-white small d-flex align-items-center gap-2 bg-white bg-opacity-10 px-2 py-1 rounded-3 border border-white border-opacity-25">
+                            <label for="monthSelect" class="mb-0 fw-semibold">Mese:</label>
+                            <input type="month" id="monthSelect" class="form-control form-control-sm bg-transparent text-white border-0 shadow-none" style="width: 130px;">
+                        </div>
+                        <button class="btn btn-glass btn-sm px-3" onclick="saveData()"><i class="fa-solid fa-floppy-disk me-1"></i> Salva</button>
+                        <button class="btn btn-light btn-sm text-dark fw-bold px-3 rounded-3 shadow-sm" onclick="window.print()"><i class="fa-solid fa-print me-1"></i> Stampa</button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="container-fluid mt-3 px-4">
+                
+                <!-- VISTA 1: SCHEDULATO -->
+                <div id="viewSchedule" class="page-view">
+                    <ul class="nav nav-tabs" id="flightTabs" role="tablist"></ul>
+                    <div class="tab-content card-liquid" id="flightTabsContent"></div>
+                </div>
+
+                <!-- VISTA 2: STATISTICHE -->
+                <div id="viewStats" class="page-view" style="display: none;">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-primary"><i class="fa-solid fa-plane"></i></div>
+                                <div>
+                                    <h6 class="text-muted mb-1 small fw-bold">VOLI ANALIZZATI</h6>
+                                    <h3 class="fw-bold mb-0" id="statTotalFlights">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-success"><i class="fa-solid fa-circle-check"></i></div>
+                                <div>
+                                    <h6 class="text-muted mb-1 small fw-bold">IN ORARIO (ON-TIME)</h6>
+                                    <h3 class="fw-bold mb-0 text-success" id="statOnTime">0 <small class="fs-6 text-muted" id="statOnTimePerc">(0%)</small></h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-warning text-dark"><i class="fa-solid fa-clock"></i></div>
+                                <div>
+                                    <h6 class="text-muted mb-1 small fw-bold">IN RITARDO (DELAYED)</h6>
+                                    <h3 class="fw-bold mb-0 text-warning" id="statDelayed">0 <small class="fs-6 text-muted" id="statDelayedPerc">(0%)</small></h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-icon bg-danger"><i class="fa-solid fa-ban"></i></div>
+                                <div>
+                                    <h6 class="text-muted mb-1 small fw-bold">CANCELLATI / NOOP / CLD</h6>
+                                    <h3 class="fw-bold mb-0 text-danger" id="statCancelled">0 <small class="fs-6 text-muted" id="statCancelledPerc">(0%)</small></h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-liquid">
+                        <h5 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-table-list me-2"></i> Riepilogo Operativo: <span id="statsAirlineName" class="text-primary">Delta Air Lines</span></h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm align-middle" id="statsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Volo</th>
+                                        <th>STD (Schedulato)</th>
+                                        <th>ATD (Effettivo)</th>
+                                        <th>Stato Operativo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISTA 3: IMPOSTAZIONI -->
+                <div id="viewSettings" class="page-view" style="display: none;">
+                    <div class="card-liquid">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <div>
+                                <h5 class="fw-bold text-secondary mb-0"><i class="fa-solid fa-gears me-2"></i> Configurazione Voli, Orari e Giorni Operativi (<span id="settingsAirlineName">Delta Air Lines</span>)</h5>
+                                <p class="text-muted small mb-0">Imposta Volo IN/OUT, relativi orari e giorni operativi (i giorni non spuntati appariranno come NOOP).</p>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="btn btn-warning btn-sm px-3 rounded-3 shadow-sm mb-0 text-dark fw-bold" style="cursor: pointer;">
+                                    <i class="fa-solid fa-file-arrow-up me-1"></i> Carica Programmazione <input type="file" id="importScheduleFile" accept=".xlsx, .xls, .json, .csv" style="display: none;" onchange="importSchedule(event)">
+                                </label>
+                                <button class="btn btn-success btn-sm rounded-3 px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addFlightModal"><i class="fa-solid fa-plus me-1"></i> Aggiungi Nuovo Volo</button>
+                                <button class="btn btn-danger btn-sm rounded-3 px-3 shadow-sm" onclick="clearData()"><i class="fa-solid fa-trash me-1"></i> Reset Dati</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-bordered table-hover table-sm align-middle" id="settingsFlightsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Volo IN</th>
+                                        <th>Orario Volo in Arrivo</th>
+                                        <th>Volo OUT</th>
+                                        <th>Orario Volo in Partenza</th>
+                                        <th>Giorni Operativi Settimanali (Lun - Dom)</th>
+                                        <th>Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="settingsFlightsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aggiungi Volo -->
+    <div class="modal fade" id="addFlightModal" tabindex="-1" aria-labelledby="addFlightModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white border-0 rounded-top-4">
+                    <h5 class="modal-title" id="addFlightModalLabel"><i class="fa-solid fa-plane-circle-plus me-2 text-danger"></i> Aggiungi Nuovo Volo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addFlightForm">
+                        <div class="mb-3">
+                            <label for="newFlightNumber" class="form-label fw-bold text-dark">Numero Volo / Nome OUT (es. DL 315)</label>
+                            <input type="text" class="form-control bg-white bg-opacity-75" id="newFlightNumber" placeholder="es. DL 315 FCO-JFK" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newFlightArr" class="form-label fw-bold text-dark">Volo IN (Arrivo)</label>
+                            <input type="text" class="form-control bg-white bg-opacity-75" id="newFlightArr" placeholder="es. DL 112" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newFlightSta" class="form-label fw-bold text-dark">Orario Arrivo (STA)</label>
+                            <input type="time" class="form-control bg-white bg-opacity-75" id="newFlightSta" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newFlightStd" class="form-label fw-bold text-dark">Orario Partenza (STD)</label>
+                            <input type="time" class="form-control bg-white bg-opacity-75" id="newFlightStd" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-3 px-3" data-bs-dismiss="modal">Annulla</button>
+                    <button type="button" class="btn btn-primary btn-sm rounded-3 px-3" onclick="addNewFlight()">Aggiungi Volo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifica Volo Esistente -->
+    <div class="modal fade" id="editFlightModal" tabindex="-1" aria-labelledby="editFlightModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white border-0 rounded-top-4">
+                    <h5 class="modal-title" id="editFlightModalLabel"><i class="fa-solid fa-pen-to-square me-2"></i> Modifica Schedulato Volo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editFlightForm">
+                        <input type="hidden" id="editFlightIndex">
+                        <div class="mb-3">
+                            <label for="editFlightNumber" class="form-label fw-bold text-dark">Numero Volo / Nome OUT</label>
+                            <input type="text" class="form-control bg-white bg-opacity-75" id="editFlightNumber" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editFlightArr" class="form-label fw-bold text-dark">Volo IN (Arrivo)</label>
+                            <input type="text" class="form-control bg-white bg-opacity-75" id="editFlightArr" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editFlightSta" class="form-label fw-bold text-dark">Orario Arrivo (STA)</label>
+                            <input type="time" class="form-control bg-white bg-opacity-75" id="editFlightSta" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editFlightStd" class="form-label fw-bold text-dark">Orario Partenza (STD)</label>
+                            <input type="time" class="form-control bg-white bg-opacity-75" id="editFlightStd" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-3 px-3" onclick="deleteCurrentFlight()"><i class="fa-solid fa-trash me-1"></i> Elimina Volo</button>
+                    <div>
+                        <button type="button" class="btn btn-secondary btn-sm rounded-3 px-3" data-bs-dismiss="modal">Annulla</button>
+                        <button type="button" class="btn btn-primary btn-sm rounded-3 px-3" onclick="updateFlightData()">Salva Modifiche</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const airlinesData = {
+            "delta": {
+                name: "Delta Air Lines",
+                flights: [
+                    { id: "DL113", name: "DL 113", defaultArr: "DL112", sta: "07:45", std: "10:55", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "DL183", name: "DL 183", defaultArr: "DL206", sta: "09:35", std: "11:45", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "DL207", name: "DL 207", defaultArr: "DL182", sta: "07:45", std: "10:00", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "DL215", name: "DL 215", defaultArr: "DL214", sta: "08:15", std: "10:25", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "DL231", name: "DL 231", defaultArr: "DL230", sta: "10:45", std: "12:55", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "DL303", name: "DL 303", defaultArr: "DL302", sta: "10:30", std: "12:30", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "DL67",  name: "DL 67",  defaultArr: "DL66",  sta: "11:20", std: "13:30", activeDays: [1,2,3,4,5,6,7] }
+                ]
+            },
+            "united": {
+                name: "United Airlines",
+                flights: [
+                    { id: "UA971", name: "UA 971", defaultArr: "UA970", sta: "07:45", std: "09:45", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "UA885", name: "UA 885", defaultArr: "UA884", sta: "08:00", std: "10:15", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "UA41",  name: "UA 41",  defaultArr: "UA970", sta: "07:45", std: "11:00", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "UA509", name: "UA 509", defaultArr: "UA884", sta: "08:00", std: "12:15", activeDays: [1,2,3,4,5,6,7] },
+                    { id: "UA178", name: "UA 178", defaultArr: "UA970", sta: "07:45", std: "13:00", activeDays: [1,2,3,4,5,6,7] }
+                ]
+            }
+        };
+
+        let currentAirlineKey = "delta";
+        let currentActivePage = "schedule"; 
+        let currentActiveFlightId = null; 
+        let flights = airlinesData[currentAirlineKey].flights;
+
+        const rowFields = [
+            { key: "arrIn", label: "ARR IN (Volo IN)", type: "select" },
+            { key: "sta", label: "STA (Orario Arrivo)", type: "time-text" },
+            { key: "ata", label: "ATA", type: "time-text" },
+            { key: "std", label: "STD (Orario Partenza)", type: "time-text" },
+            { key: "atd", label: "ATD", type: "time-text" },
+            { key: "pax", label: "TOTAL PAX", type: "number" },
+            { key: "parking", label: "PARKING", type: "number" },
+            { key: "b_start", label: "BOARDING START", type: "time-text" },
+            { key: "b_finish", label: "BOARDING FINISH", type: "time-text" },
+            { key: "tsa", label: "TSA SELECTEES", type: "number" },
+            { key: "random", label: "RANDOM SELECTEES", type: "number" },
+            { key: "bdo", label: "BDO SELECTEES", type: "number" }
+        ];
+
+        const daysOfWeekNames = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+
+        function getDaysInMonth(year, month) {
+            return new Date(year, month, 0).getDate();
+        }
+
+        function getDayOfWeekName(year, month, day) {
+            const date = new Date(year, month - 1, day);
+            return daysOfWeekNames[date.getDay()];
+        }
+
+        function getDayOfWeekNumberJS(year, month, day) {
+            const date = new Date(year, month - 1, day);
+            let jsDay = date.getDay(); 
+            return jsDay === 0 ? 7 : jsDay; 
+        }
+
+        function isSunday(year, month, day) {
+            const date = new Date(year, month - 1, day);
+            return date.getDay() === 0;
+        }
+
+        function setDefaultMonth() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('monthSelect').value = `${year}-${month}`;
+        }
+
+        function formatTimeString(inputStr) {
+            let clean = inputStr.replace(/[^0-9]/g, '');
+            if (clean === '') return '';
+            
+            if (clean.length === 1) {
+                clean = '0' + clean + '00';
+            } else if (clean.length === 2) {
+                clean = clean + '00';
+            } else if (clean.length === 3) {
+                clean = '0' + clean;
+            }
+            
+            if (clean.length >= 4) {
+                let hh = clean.substring(0, 2);
+                let mm = clean.substring(2, 4);
+                let hNum = parseInt(hh, 10);
+                let mNum = parseInt(mm, 10);
+                if (hNum > 23) hNum = 23;
+                if (mNum > 59) mNum = 59;
+                return String(hNum).padStart(2, '0') + ':' + String(mNum).padStart(2, '0');
+            }
+            return inputStr;
+        }
+
+        function handleTimeInputBlur(event) {
+            const val = event.target.value.trim();
+            if (val === '' || val === '-' || val.toUpperCase() === 'NOOP' || val.toUpperCase() === 'CLD') return;
+            event.target.value = formatTimeString(val);
+            saveDataSilent();
+        }
+
+        function handleArrInChange(event) {
+            const selectEl = event.target;
+            const flightId = selectEl.dataset.flight;
+            const day = selectEl.dataset.day;
+            const selectedVal = selectEl.value;
+
+            const cellInputs = document.querySelectorAll(`[data-flight="${flightId}"][data-day="${day}"]:not([data-extra="true"])`);
+            const columnTds = document.querySelectorAll(`td[data-cell-container="${flightId}-${day}"]`);
+
+            if (selectedVal === 'NOOP' || selectedVal === 'CLD') {
+                cellInputs.forEach(input => {
+                    if (input !== selectEl) {
+                        input.value = '';
+                    }
+                });
+
+                if (selectedVal === 'CLD') {
+                    columnTds.forEach(td => td.classList.add('cld-col'));
+                } else {
+                    columnTds.forEach(td => td.classList.remove('cld-col'));
+                }
+            } else {
+                columnTds.forEach(td => td.classList.remove('cld-col'));
+
+                const staInput = document.querySelector(`input[data-flight="${flightId}"][data-day="${day}"][data-field="sta"]:not([data-extra="true"])`);
+                
+                if (selectedVal === '') {
+                    if (staInput) staInput.value = '';
+                } else {
+                    let matchedFlight = flights.find(f => f.defaultArr === selectedVal || f.name === selectedVal || f.id === selectedVal);
+                    if (matchedFlight) {
+                        if (staInput && matchedFlight.sta) staInput.value = matchedFlight.sta;
+                    } else {
+                        if (staInput) staInput.value = "07:45";
+                    }
+                }
+            }
+            saveDataSilent();
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('airlineListContainer');
+            container.innerHTML = '';
+            for (let key in airlinesData) {
+                const airline = airlinesData[key];
+                const isActive = key === currentAirlineKey ? 'active' : '';
+                container.innerHTML += `
+                    <div class="airline-btn ${isActive}" onclick="switchAirline('${key}')">
+                        <i class="fa-solid fa-plane"></i>
+                        <span>${airline.name}</span>
+                    </div>
+                `;
+            }
+        }
+
+        function switchAirline(key) {
+            if (currentActivePage === 'schedule') {
+                saveDataSilent();
+            }
+            currentAirlineKey = key;
+            flights = airlinesData[key].flights;
+            currentActiveFlightId = flights.length > 0 ? flights[0].id : null;
+            document.getElementById('currentAirlineTitle').innerText = airlinesData[key].name;
+            renderSidebar();
+            refreshCurrentView();
+        }
+
+        function switchPage(page) {
+            if (currentActivePage === 'schedule' && page !== 'schedule') {
+                saveDataSilent();
+            }
+
+            currentActivePage = page;
+            document.getElementById('navPageSchedule').classList.toggle('active', page === 'schedule');
+            document.getElementById('navPageStats').classList.toggle('active', page === 'stats');
+            document.getElementById('navPageSettings').classList.toggle('active', page === 'settings');
+
+            document.getElementById('viewSchedule').style.display = page === 'schedule' ? 'block' : 'none';
+            document.getElementById('viewStats').style.display = page === 'stats' ? 'block' : 'none';
+            document.getElementById('viewSettings').style.display = page === 'settings' ? 'block' : 'none';
+
+            if (page === 'schedule') {
+                document.getElementById('currentViewSubtitle').innerText = '| Operativa Mensile';
+                initApp();
+            } else if (page === 'stats') {
+                document.getElementById('currentViewSubtitle').innerText = '| Statistiche Operative';
+                calculateStats();
+            } else if (page === 'settings') {
+                document.getElementById('currentViewSubtitle').innerText = '| Impostazioni Voli';
+                renderSettingsPage();
+            }
+        }
+
+        function refreshCurrentView() {
+            if (currentActivePage === 'schedule') initApp();
+            else if (currentActivePage === 'stats') calculateStats();
+            else if (currentActivePage === 'settings') renderSettingsPage();
+        }
+
+        function initApp() {
+            renderSidebar();
+            
+            const tabsContainer = document.getElementById('flightTabs');
+            const contentContainer = document.getElementById('flightTabsContent');
+            
+            tabsContainer.innerHTML = '';
+            contentContainer.innerHTML = '';
+
+            const monthInputValue = document.getElementById('monthSelect').value;
+            const [year, month] = monthInputValue.split('-').map(Number);
+            const totalDays = getDaysInMonth(year, month);
+
+            if (!currentActiveFlightId || !flights.some(f => f.id === currentActiveFlightId)) {
+                currentActiveFlightId = flights.length > 0 ? flights[0].id : null;
+            }
+
+            flights.forEach((flight, index) => {
+                const isTabActive = flight.id === currentActiveFlightId ? 'active' : '';
+                
+                tabsContainer.innerHTML += `
+                    <li class="nav-item me-1 mb-1" role="presentation">
+                        <button class="nav-link ${isTabActive} rounded-3 px-3 flight-tab-btn" id="tab-${flight.id}" data-bs-toggle="tab" data-bs-target="#content-${flight.id}" type="button" role="tab" onclick="currentActiveFlightId='${flight.id}'">${flight.name}</button>
+                    </li>
+                `;
+
+                let tableHeaders = `<th class="sticky-col">Parametro / Giorno</th>`;
+                for (let d = 1; d <= totalDays; d++) {
+                    const dayName = getDayOfWeekName(year, month, d);
+                    const sunClass = isSunday(year, month, d) ? 'sunday-col text-danger fw-bold' : '';
+                    tableHeaders += `<th class="${sunClass}">${d}<br><small>${dayName}</small></th>`;
+                }
+
+                // Tabella principale Operativa
+                let tableRows = '';
+                rowFields.forEach(field => {
+                    let rowHtml = `<tr><td class="sticky-col field-label">${field.label}</td>`;
+                    for (let d = 1; d <= totalDays; d++) {
+                        const sunClass = isSunday(year, month, d) ? 'sunday-col' : '';
+                        
+                        const dayOfWeekNum = getDayOfWeekNumberJS(year, month, d);
+                        const isActiveDay = flight.activeDays && flight.activeDays.includes(dayOfWeekNum);
+                        
+                        let defaultVal = '';
+                        if (field.key === 'arrIn') {
+                            defaultVal = '';
+                        } else if (field.key === 'std') {
+                            defaultVal = isActiveDay ? flight.std : '';
+                        }
+
+                        if (field.type === 'select') {
+                            let optionsHtml = `<option value="" ${defaultVal === '' ? 'selected' : ''}>-- Seleziona Volo IN --</option>`;
+                            flights.forEach(f => {
+                                let arrVal = f.defaultArr;
+                                let isSelected = (defaultVal === arrVal || defaultVal === f.name) ? 'selected' : '';
+                                optionsHtml += `<option value="${arrVal}" ${isSelected}>${arrVal}</option>`;
+                            });
+                            
+                            let isNoopSelected = defaultVal === 'NOOP' ? 'selected' : '';
+                            let isCldSelected = defaultVal === 'CLD' ? 'selected' : '';
+
+                            rowHtml += `
+                                <td class="${sunClass}" data-cell-container="${flight.id}-${d}">
+                                    <select class="form-select form-select-sm data-input" data-flight="${flight.id}" data-day="${d}" data-field="${field.key}" onchange="handleArrInChange(event)">
+                                        ${optionsHtml}
+                                        <option value="NOOP" ${isNoopSelected}>NOOP</option>
+                                        <option value="CLD" ${isCldSelected}>CLD</option>
+                                    </select>
+                                </td>
+                            `;
+                        } else if (field.type === 'time-text') {
+                            rowHtml += `
+                                <td class="${sunClass}" data-cell-container="${flight.id}-${d}">
+                                    <input type="text" class="form-control form-control-sm data-input time-input" data-flight="${flight.id}" data-day="${d}" data-field="${field.key}" value="${defaultVal}" onblur="handleTimeInputBlur(event)" placeholder="">
+                                </td>
+                            `;
+                        } else {
+                            rowHtml += `
+                                <td class="${sunClass}" data-cell-container="${flight.id}-${d}">
+                                    <input type="${field.type === 'number' ? 'number' : 'text'}" class="form-control form-control-sm data-input" data-flight="${flight.id}" data-day="${d}" data-field="${field.key}" value="${defaultVal}">
+                                </td>
+                            `;
+                        }
+                    }
+                    rowHtml += `</tr>`;
+                    tableRows += rowHtml;
+                });
+
+                // Tabella Extra Section (senza menu a tendina e senza la parola EXTRA nella colonna etichetta)
+                let extraTableRows = '';
+                rowFields.forEach(field => {
+                    let rowHtml = `<tr><td class="sticky-col field-label">${field.label}</td>`;
+                    for (let d = 1; d <= totalDays; d++) {
+                        const sunClass = isSunday(year, month, d) ? 'sunday-col' : '';
+                        
+                        if (field.type === 'select') {
+                            rowHtml += `
+                                <td class="${sunClass}">
+                                    <input type="text" class="form-control form-control-sm data-input" data-flight="${flight.id}" data-day="${d}" data-field="${field.key}" data-extra="true" value="" placeholder="">
+                                </td>
+                            `;
+                        } else if (field.type === 'time-text') {
+                            rowHtml += `
+                                <td class="${sunClass}">
+                                    <input type="text" class="form-control form-control-sm data-input time-input" data-flight="${flight.id}" data-day="${d}" data-field="${field.key}" data-extra="true" value="" onblur="handleTimeInputBlur(event)" placeholder="">
+                                </td>
+                            `;
+                        } else {
+                            rowHtml += `
+                                <td class="${sunClass}">
+                                    <input type="${field.type === 'number' ? 'number' : 'text'}" class="form-control form-control-sm data-input" data-flight="${flight.id}" data-day="${d}" data-field="${field.key}" data-extra="true" value="">
+                                </td>
+                            `;
+                        }
+                    }
+                    rowHtml += `</tr>`;
+                    extraTableRows += rowHtml;
+                });
+
+                contentContainer.innerHTML += `
+                    <div class="tab-pane fade show ${isTabActive}" id="content-${flight.id}" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-secondary fw-bold mb-0"><i class="fa-solid fa-plane me-1"></i> Operatività Volo ${flight.name} - Mese (${totalDays} Giorni)</h6>
+                            <span class="badge bg-primary bg-opacity-75">Le domeniche sono evidenziate in giallo</span>
+                        </div>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-bordered table-hover table-sm">
+                                <thead><tr>${tableHeaders}</tr></thead>
+                                <tbody>${tableRows}</tbody>
+                            </table>
+                        </div>
+
+                        <!-- Extra Section Tabella Sottostante -->
+                        <div class="mt-4 pt-2 border-top border-secondary border-opacity-25">
+                            <h6 class="text-secondary fw-bold mb-2"><i class="fa-solid fa-layer-group me-1 text-danger"></i> Extra Section - Inserimento Manuale (${flight.name})</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover table-sm">
+                                    <thead><tr>${tableHeaders}</tr></thead>
+                                    <tbody>${extraTableRows}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            loadData();
+        }
+
+        function renderSettingsPage() {
+            document.getElementById('settingsAirlineName').innerText = airlinesData[currentAirlineKey].name;
+            const tbody = document.getElementById('settingsFlightsTableBody');
+            tbody.innerHTML = '';
+
+            flights.forEach((flight, index) => {
+                let daysCheckboxes = '';
+                const dayLabels = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+                for (let dNum = 1; dNum <= 7; dNum++) {
+                    const isChecked = (!flight.activeDays || flight.activeDays.includes(dNum)) ? 'checked' : '';
+                    daysCheckboxes += `
+                        <div class="form-check form-check-inline me-2">
+                            <input class="form-check-input setting-day-chk" type="checkbox" data-flight-index="${index}" data-day-num="${dNum}" id="chk_${flight.id}_${dNum}" ${isChecked} onchange="updateFlightActiveDays(${index})">
+                            <label class="form-check-label small fw-semibold" for="chk_${flight.id}_${dNum}">${dayLabels[dNum-1]}</label>
+                        </div>
+                    `;
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <input type="text" class="form-control form-control-sm" id="set_arr_${index}" value="${flight.defaultArr}" onchange="updateFlightSettingField(${index}, 'arr')">
+                        </td>
+                        <td>
+                            <input type="time" class="form-control form-control-sm" id="set_sta_${index}" value="${flight.sta}" onchange="updateFlightSettingField(${index}, 'sta')">
+                        </td>
+                        <td class="fw-bold">
+                            <input type="text" class="form-control form-control-sm fw-bold" id="set_name_${index}" value="${flight.name}" onchange="updateFlightSettingField(${index}, 'name')">
+                        </td>
+                        <td>
+                            <input type="time" class="form-control form-control-sm" id="set_std_${index}" value="${flight.std}" onchange="updateFlightSettingField(${index}, 'std')">
+                        </td>
+                        <td class="text-start ps-3">${daysCheckboxes}</td>
+                        <td>
+                            <button class="btn btn-outline-danger btn-sm px-2 py-1" title="Elimina Volo" onclick="deleteFlightFromSettings(${index})"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updateFlightActiveDays(flightIndex) {
+            const checkboxes = document.querySelectorAll(`.setting-day-chk[data-flight-index="${flightIndex}"]`);
+            let activeDays = [];
+            checkboxes.forEach(chk => {
+                if (chk.checked) {
+                    activeDays.push(parseInt(chk.dataset.dayNum));
+                }
+            });
+            flights[flightIndex].activeDays = activeDays;
+            airlinesData[currentAirlineKey].flights = flights;
+            
+            const monthKey = document.getElementById('monthSelect').value;
+            localStorage.removeItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+        }
+
+        function updateFlightSettingField(flightIndex, fieldType) {
+            if (fieldType === 'name') {
+                const val = document.getElementById(`set_name_${flightIndex}`).value.trim();
+                flights[flightIndex].name = val;
+                flights[flightIndex].id = val.replace(/[^a-zA-Z0-9]/g, '_');
+            } else if (fieldType === 'arr') {
+                flights[flightIndex].defaultArr = document.getElementById(`set_arr_${flightIndex}`).value;
+            } else if (fieldType === 'sta') {
+                flights[flightIndex].sta = document.getElementById(`set_sta_${flightIndex}`).value;
+            } else if (fieldType === 'std') {
+                flights[flightIndex].std = document.getElementById(`set_std_${flightIndex}`).value;
+            }
+            airlinesData[currentAirlineKey].flights = flights;
+
+            const monthKey = document.getElementById('monthSelect').value;
+            localStorage.removeItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+        }
+
+        function deleteFlightFromSettings(flightIndex) {
+            const flightName = flights[flightIndex].name;
+            if (confirm(`Sei sicuro di voler eliminare il volo ${flightName}?`)) {
+                flights.splice(flightIndex, 1);
+                airlinesData[currentAirlineKey].flights = flights;
+                
+                const monthKey = document.getElementById('monthSelect').value;
+                localStorage.removeItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+
+                renderSettingsPage();
+            }
+        }
+
+        function calculateStats() {
+            saveDataSilent();
+
+            const monthInputValue = document.getElementById('monthSelect').value;
+            const [year, month] = monthInputValue.split('-').map(Number);
+            const totalDays = getDaysInMonth(year, month);
+            
+            const monthKey = document.getElementById('monthSelect').value;
+            const saved = localStorage.getItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+            let savedData = saved ? JSON.parse(saved) : {};
+
+            let totalCount = 0;
+            let onTimeCount = 0;
+            let delayedCount = 0;
+            let cancelledCount = 0;
+
+            let tableRowsHtml = '';
+            document.getElementById('statsAirlineName').innerText = airlinesData[currentAirlineKey].name;
+
+            flights.forEach(flight => {
+                for (let d = 1; d <= totalDays; d++) {
+                    totalCount++;
+                    
+                    let stdVal = String(flight.std || "").trim();
+                    let atdVal = "";
+                    let arrInVal = "";
+
+                    if (savedData[flight.id] && savedData[flight.id][d]) {
+                        if (savedData[flight.id][d]['std'] !== undefined) stdVal = String(savedData[flight.id][d]['std']).trim();
+                        if (savedData[flight.id][d]['atd'] !== undefined) atdVal = String(savedData[flight.id][d]['atd']).trim();
+                        if (savedData[flight.id][d]['arrIn'] !== undefined) arrInVal = savedData[flight.id][d]['arrIn'];
+                    }
+
+                    let statusBadge = '';
+
+                    if (arrInVal === 'NOOP' || arrInVal === 'CLD' || stdVal.toUpperCase().includes('NOOP') || stdVal.toUpperCase().includes('CLD') || atdVal.toUpperCase().includes('NOOP') || atdVal.toUpperCase().includes('CLD')) {
+                        cancelledCount++;
+                        let labelText = arrInVal === 'CLD' ? 'CLD / Cancellato' : 'NOOP / Cancellato';
+                        statusBadge = `<span class="badge bg-danger"><i class="fa-solid fa-ban me-1"></i> ${labelText}</span>`;
+                    } else if (!stdVal || stdVal === '') {
+                        onTimeCount++;
+                        statusBadge = '<span class="badge bg-secondary"><i class="fa-solid fa-minus me-1"></i> Non Schedulato</span>';
+                    } else if (!atdVal || atdVal === '' || atdVal === '-') {
+                        onTimeCount++;
+                        statusBadge = '<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> In Orario (Previsto)</span>';
+                    } else {
+                        let stdParts = stdVal.split(':');
+                        let atdParts = atdVal.split(':');
+                        
+                        let stdMinutes = (parseInt(stdParts[0]) || 0) * 60 + (parseInt(stdParts[1]) || 0);
+                        let atdMinutes = (parseInt(atdParts[0]) || 0) * 60 + (parseInt(atdParts[1]) || 0);
+                        let diffMinutes = atdMinutes - stdMinutes;
+
+                        if (diffMinutes > 15) {
+                            delayedCount++;
+                            statusBadge = `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i> Ritardo (+${diffMinutes}m)</span>`;
+                        } else {
+                            onTimeCount++;
+                            statusBadge = '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> In Orario</span>';
+                        }
+                    }
+
+                    const formattedDate = `${String(d).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+                    tableRowsHtml += `
+                        <tr>
+                            <td>${formattedDate}</td>
+                            <td class="fw-bold">${flight.name}</td>
+                            <td>${stdVal || '-'}</td>
+                            <td>${atdVal || '-'}</td>
+                            <td>${statusBadge}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            document.getElementById('statTotalFlights').innerText = totalCount;
+            document.getElementById('statOnTime').innerText = onTimeCount;
+            document.getElementById('statOnTimePerc').innerText = `(${Math.round((onTimeCount / totalCount) * 100 || 0)}%)`;
+            
+            document.getElementById('statDelayed').innerText = delayedCount;
+            document.getElementById('statDelayedPerc').innerText = `(${Math.round((delayedCount / totalCount) * 100 || 0)}%)`;
+            
+            document.getElementById('statCancelled').innerText = cancelledCount;
+            document.getElementById('statCancelledPerc').innerText = `(${Math.round((cancelledCount / totalCount) * 100 || 0)}%)`;
+
+            document.getElementById('statsTableBody').innerHTML = tableRowsHtml;
+        }
+
+        function addNewFlight() {
+            const rawName = document.getElementById('newFlightNumber').value.trim();
+            const defaultArr = document.getElementById('newFlightArr').value.trim();
+            const sta = document.getElementById('newFlightSta').value;
+            const std = document.getElementById('newFlightStd').value;
+
+            if (!rawName) {
+                alert('Inserisci un numero di volo OUT valido.');
+                return;
+            }
+
+            const flightId = rawName.replace(/[^a-zA-Z0-9]/g, '_');
+
+            if (flights.some(f => f.id === flightId)) {
+                alert('Esiste già un volo con questo codice.');
+                return;
+            }
+
+            flights.push({
+                id: flightId,
+                name: rawName,
+                defaultArr: defaultArr || 'DL100',
+                sta: sta || '',
+                std: std || '',
+                activeDays: [1,2,3,4,5,6,7]
+            });
+
+            airlinesData[currentAirlineKey].flights = flights;
+
+            const monthKey = document.getElementById('monthSelect').value;
+            localStorage.removeItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+
+            const modalEl = document.getElementById('addFlightModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+            document.getElementById('addFlightForm').reset();
+
+            refreshCurrentView();
+            alert(`Volo ${rawName} aggiunto con successo!`);
+        }
+
+        function updateFlightData() {
+            const index = document.getElementById('editFlightIndex').value;
+            const rawName = document.getElementById('editFlightNumber').value.trim();
+            const defaultArr = document.getElementById('editFlightArr').value.trim();
+            const sta = document.getElementById('editFlightSta').value;
+            const std = document.getElementById('editFlightStd').value;
+
+            if (!rawName) {
+                alert('Il nome del volo non può essere vuoto.');
+                return;
+            }
+
+            const flightId = rawName.replace(/[^a-zA-Z0-9]/g, '_');
+
+            flights[index].name = rawName;
+            flights[index].id = flightId;
+            flights[index].defaultArr = defaultArr;
+            flights[index].sta = sta;
+            flights[index].std = std;
+
+            airlinesData[currentAirlineKey].flights = flights;
+
+            const monthKey = document.getElementById('monthSelect').value;
+            localStorage.removeItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+
+            const modalEl = document.getElementById('editFlightModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+
+            refreshCurrentView();
+            alert('Volo aggiornato con successo!');
+        }
+
+        function deleteCurrentFlight() {
+            const index = document.getElementById('editFlightIndex').value;
+            const flightName = flights[index].name;
+
+            if (confirm(`Sei sicuro di voler eliminare il volo ${flightName}?`)) {
+                flights.splice(index, 1);
+                airlinesData[currentAirlineKey].flights = flights;
+
+                const monthKey = document.getElementById('monthSelect').value;
+                localStorage.removeItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+
+                const modalEl = document.getElementById('editFlightModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                refreshCurrentView();
+                alert(`Volo ${flightName} eliminato.`);
+            }
+        }
+
+        function importSchedule(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            const fileName = file.name.toLowerCase();
+
+            if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        parseExcelRows(rows);
+                        alert('Programmazione Excel (.xlsx) caricata e aggiornata con successo!');
+                    } catch (err) {
+                        alert('Errore nella lettura del file Excel: ' + err.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.onload = function(e) {
+                    try {
+                        const content = JSON.parse(e.target.result);
+                        if (Array.isArray(content)) {
+                            flights = content;
+                            airlinesData[currentAirlineKey].flights = flights;
+                            refreshCurrentView();
+                            alert('Programmazione caricata con successo!');
+                        } else {
+                            alert('Formato JSON non valido.');
+                        }
+                    } catch (err) {
+                        alert('Errore nella lettura del file: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function parseExcelRows(rows) {
+            rows.forEach(row => {
+                let flightStr = row.find(cell => cell && typeof cell === 'string' && (cell.includes('DL') || cell.includes('UA')));
+                if (flightStr) {
+                    let matchedFlight = flights.find(f => flightStr.includes(f.name.replace(/\s+/g, '')));
+                    if (matchedFlight) {
+                        for (let d = 1; d <= 31; d++) {
+                            let cellVal = row[d] !== undefined ? String(row[d]).trim().toUpperCase() : '';
+                            
+                            const arrInput = document.querySelector(`select[data-flight="${matchedFlight.id}"][data-day="${d}"][data-field="arrIn"]:not([data-extra="true"])`);
+                            
+                            if (cellVal.includes('CLD') || cellVal.includes('NOOP') || cellVal === '') {
+                                if (arrInput) {
+                                    arrInput.value = cellVal.includes('CLD') ? 'CLD' : 'NOOP';
+                                    if (cellVal.includes('CLD')) {
+                                        const columnTds = document.querySelectorAll(`td[data-cell-container="${matchedFlight.id}-${d}"]`);
+                                        columnTds.forEach(td => td.classList.add('cld-col'));
+                                    }
+                                }
+                            } else {
+                                const stdInput = document.querySelector(`input[data-flight="${matchedFlight.id}"][data-day="${d}"][data-field="std"]:not([data-extra="true"])`);
+                                if (stdInput && cellVal) {
+                                    stdInput.value = formatTimeString(cellVal);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function saveData() {
+            saveDataSilent();
+            alert('Dati salvati con successo nel browser!');
+        }
+
+        function saveDataSilent() {
+            if (currentActivePage !== 'schedule') return;
+            const inputs = document.querySelectorAll('.data-input');
+            const data = {};
+            const monthKey = document.getElementById('monthSelect').value;
+
+            inputs.forEach(input => {
+                const flight = input.dataset.flight;
+                const day = input.dataset.day;
+                const field = (input.dataset.extra === "true" ? "extra_" : "") + input.dataset.field;
+                if (!data[flight]) data[flight] = {};
+                if (!data[flight][day]) data[flight][day] = {};
+                data[flight][day][field] = input.value;
+            });
+
+            localStorage.setItem(`airline_flights_${currentAirlineKey}_${monthKey}`, JSON.stringify(data));
+        }
+
+        function loadData() {
+            const monthKey = document.getElementById('monthSelect').value;
+            const saved = localStorage.getItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+            if (!saved) return;
+
+            const data = JSON.parse(saved);
+            const inputs = document.querySelectorAll('.data-input');
+
+            inputs.forEach(input => {
+                const flight = input.dataset.flight;
+                const day = input.dataset.day;
+                const field = (input.dataset.extra === "true" ? "extra_" : "") + input.dataset.field;
+                if (data[flight] && data[flight][day] && data[flight][day][field] !== undefined) {
+                    input.value = data[flight][day][field];
+                    
+                    if (input.dataset.extra !== "true" && field === 'arrIn' && data[flight][day][field] === 'CLD') {
+                        const columnTds = document.querySelectorAll(`td[data-cell-container="${flight}-${day}"]`);
+                        columnTds.forEach(td => td.classList.add('cld-col'));
+                    }
+                }
+            });
+        }
+
+        function clearData() {
+            if (confirm('Vuoi davvero cancellare tutti i dati inseriti per questa compagnia e questo mese?')) {
+                const monthKey = document.getElementById('monthSelect').value;
+                localStorage.removeItem(`airline_flights_${currentAirlineKey}_${monthKey}`);
+                refreshCurrentView();
+            }
+        }
+
+        document.getElementById('monthSelect').addEventListener('change', refreshCurrentView);
+        
+        window.onload = () => {
+            setDefaultMonth();
+            initApp();
+        };
+    </script>
+</body>
+</html>
